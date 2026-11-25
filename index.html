@@ -148,12 +148,29 @@ try { learned = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); if (!Array.isA
 function saveLearned() { try { localStorage.setItem(LS_KEY, JSON.stringify(learned)); } catch (e) {} }
 function isLearned(id) { return learned.indexOf(id) >= 0; }
 
+let __voices = [];
+function __loadVoices() { try { __voices = speechSynthesis.getVoices() || []; } catch (e) {} }
+if ('speechSynthesis' in window) { __loadVoices(); try { speechSynthesis.onvoiceschanged = __loadVoices; } catch (e) {} }
+let __u = null;
+function __doSpeak(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP'; u.rate = 0.95;
+  const v = __voices.find(function (x) { return x.lang && x.lang.toLowerCase().indexOf('ja') === 0; });
+  if (v) u.voice = v;
+  __u = u;
+  try { speechSynthesis.resume(); } catch (e) {}
+  speechSynthesis.speak(u);
+}
 function speak(text) {
   try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP'; u.rate = 0.95;
-    speechSynthesis.speak(u);
+    if (!('speechSynthesis' in window)) return;
+    __loadVoices();
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+      speechSynthesis.cancel();
+      setTimeout(function () { __doSpeak(text); }, 90);
+    } else {
+      __doSpeak(text);
+    }
   } catch (e) {}
 }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
